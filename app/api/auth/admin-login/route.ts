@@ -1,36 +1,65 @@
-// Temporary admin auth handler - simple auth without Supabase auth service
-// Use until Supabase fixes "Database error querying schema"
+import { NextResponse } from "next/server"
+import { dbQuery } from "@/lib/db"
+import bcrypt from "bcryptjs"
+import { randomBytes } from "crypto"
+
+export const dynamic = "force-dynamic"
 
 export async function POST(request: Request) {
   try {
     const body = await request.json()
     const { email, password } = body
-    
+
     console.log("[ADMIN LOGIN] Received request for email:", email)
 
-    // Hardcoded admin credentials (TEMPORARY - replace with DB lookup)
-    const ADMIN_EMAIL = process.env.SEED_ADMIN_EMAIL || 'jamestimothyaja@gmail.com'
-    const ADMIN_PASSWORD = process.env.SEED_ADMIN_PASSWORD || '12Okt2025LENOVO#'
-
-    console.log("[ADMIN LOGIN] Expected email:", ADMIN_EMAIL)
-    console.log("[ADMIN LOGIN] Email match:", email === ADMIN_EMAIL)
-    console.log("[ADMIN LOGIN] Password match:", password === ADMIN_PASSWORD)
-
-    if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
-      // Return a simple token (not real JWT, just for frontend identification)
-      const token = btoa(JSON.stringify({ email, iat: Date.now() }))
-      console.log("[ADMIN LOGIN] Success! Token:", token.substring(0, 20) + '...')
-      return Response.json({
-        success: true,
-        token,
-        user: { id: 'admin-user', email, role: 'admin' }
-      })
+    if (!email || !password) {
+      return NextResponse.json({ error: "Email and password required" }, { status: 400 })
     }
 
-    console.log("[ADMIN LOGIN] Failed - invalid credentials")
-    return Response.json({ error: 'Invalid credentials' }, { status: 401 })
+    // Query user from Neon database
+    const userResult = await dbQuery("SELECT id, email, password_hash, role FROM users WHERE email = $1", [
+      email,
+    ])
+
+    if (userResult.rows.length === 0) {
+      console.log("[ADMIN LOGIN] User not found")
+      return NextResponse.json({ error: "Invalid credentials" }, { status: 401 })
+    }
+
+    const user = userResult.rows[0]
+
+    // Verify password
+    const isValid = await bcrypt.compare(password, user.password_hash)
+
+    if (!isValid) {
+      console.log("[ADMIN LOGIN] Invalid password")
+      return NextResponse.json({ error: "Invalid credentials" }, { status: 401 })
+    }
+
+    // Generate session token
+    const token = randomBytes(32).toString("hex")
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
+
+    // Store session in database
+    await dbQuery("INSERT INTO sessions (user_id, token, expires_at) VALUES ($1, $2, $3)", [
+      user.id,
+      token,
+      expiresAt,
+    ])
+
+    console.log("[ADMIN LOGIN] Success! User:", user.email)
+
+    return NextResponse.json({
+      success: true,
+      token,
+      user: {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+      },
+    })
   } catch (err) {
-    console.error('[ADMIN LOGIN] Error:', err)
-    return Response.json({ error: 'Auth failed: ' + String(err) }, { status: 500 })
+    console.error("[ADMIN LOGIN] Error:", err)
+    return NextResponse.json({ error: "Auth failed: " + String(err) }, { status: 500 })
   }
 }

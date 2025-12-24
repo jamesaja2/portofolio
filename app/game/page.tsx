@@ -68,6 +68,10 @@ export default function GamePage() {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore jika sedang mengetik di input/textarea
+      const target = e.target as HTMLElement
+      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") return
+      
       if (activeModal) return // Don't open modal if one is already open
       if ((e.key === "e" || e.key === "E") && nearbyHotspot) {
         setActiveModal({ type: nearbyHotspot.type })

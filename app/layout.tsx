@@ -2,6 +2,7 @@ import type React from "react"
 import type { Metadata, Viewport } from "next"
 import { Space_Mono, Inter } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
+import AIChatBot from "@/components/ai-chatbot"
 import "./globals.css"
 
 const spaceMono = Space_Mono({
@@ -20,7 +21,9 @@ export const metadata: Metadata = {
   description: "Full Stack Developer - Explore my portfolio in a unique pixel-art game experience",
   generator: "v0.app",
   icons: {
-    icon: "/icon.svg",
+    icon: "/logo.png",
+    apple: "/logo.png",
+    shortcut: "/logo.png",
   },
 }
 
@@ -40,6 +43,7 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${spaceMono.variable} ${inter.variable} font-sans antialiased`}>
         {children}
+        <AIChatBot />
         <Analytics />
       </body>
     </html>

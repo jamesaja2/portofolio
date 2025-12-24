@@ -1,6 +1,7 @@
 import { NextResponse, NextRequest } from "next/server"
 import { dbQuery } from "@/lib/db"
 import { isAdminAuthorized } from "@/lib/admin-auth"
+import nodemailer from "nodemailer"
 
 export async function GET(request: NextRequest) {
   try {
@@ -38,6 +39,47 @@ export async function POST(request: Request) {
       "INSERT INTO contact_messages (name, email, message) VALUES ($1,$2,$3) RETURNING id",
       [name.trim(), email.trim(), message.trim()],
     )
+
+    // Send email notification to admin
+    try {
+      const smtpResult = await dbQuery("SELECT * FROM smtp_settings ORDER BY created_at DESC LIMIT 1")
+      if (smtpResult.rows.length > 0) {
+        const smtp = smtpResult.rows[0]
+        const transporter = nodemailer.createTransport({
+          host: smtp.host,
+          port: smtp.port,
+          secure: smtp.secure,
+          auth: {
+            user: smtp.username,
+            pass: smtp.password,
+          },
+        })
+
+        // Get admin email from environment or database
+        const adminEmail = process.env.ADMIN_EMAIL || smtp.username
+
+        await transporter.sendMail({
+          from: `"Portfolio Contact Form" <${smtp.username}>`,
+          to: adminEmail,
+          subject: `New Contact Form Submission from ${name}`,
+          html: `
+            <h2>New Contact Form Submission</h2>
+            <p><strong>Name:</strong> ${name}</p>
+            <p><strong>Email:</strong> ${email}</p>
+            <p><strong>Message:</strong></p>
+            <p>${message.replace(/\n/g, "<br>")}</p>
+            <hr>
+            <p><small>Sent from your portfolio contact form</small></p>
+          `,
+        })
+
+        console.log("Contact form notification email sent successfully")
+      }
+    } catch (emailError) {
+      // Log email error but don't fail the contact form submission
+      console.error("Failed to send email notification:", emailError)
+    }
+
     return NextResponse.json({ success: true, id: rows[0].id })
   } catch (error) {
     console.error("Error in contact API:", error)

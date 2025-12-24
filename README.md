@@ -5,13 +5,14 @@ A unique portfolio website with a Habbo Hotel inspired isometric multiplayer cha
 ## 🎮 Features
 
 - **Isometric Multiplayer Room**: Real-time interactive chat room with Habbo Hotel aesthetics
+- **AI Chatbot Assistant**: 24/7 AI-powered chat using Google Gemini that answers questions about portfolio, projects, and skills
 - **Portfolio Showcase**: Display projects, skills, experience, and about information in interactive modals
 - **Mini Games**: 
   - Memory Game
   - Rock Paper Scissors (Suit)
   - Tech Trivia
 - **Admin Dashboard**: Full content management system for portfolio data
-- **Email System**: Contact form with admin email center using SMTP
+- **Email System**: Contact form with admin email center using SMTP + automatic notifications
 - **Mailing List**: Newsletter subscription system
 - **Custom Avatar**: Customizable character with different colors and styles
 
@@ -19,6 +20,7 @@ A unique portfolio website with a Habbo Hotel inspired isometric multiplayer cha
 
 - **Framework**: Next.js 15.5.9 (App Router)
 - **Language**: TypeScript
+- **AI**: Google Gemini 1.5 Flash
 - **Styling**: Tailwind CSS, Custom Pixel Art CSS
 - **Database**: PostgreSQL (Neon/Supabase)
 - **Authentication**: Custom admin auth system
@@ -54,7 +56,8 @@ cp .env.example .env.local
 
 Edit `.env.local` with your actual credentials:
 - Supabase/Neon database URLs and keys
-- TinyMCE API key
+- TinyMCE API key (get free at [TinyMCE](https://www.tiny.cloud/))
+- **Google Gemini API key** (get free at [Google AI Studio](https://aistudio.google.com/app/apikey))
 - Admin credentials for seeding
 
 4. Run database migrations
@@ -62,7 +65,12 @@ Edit `.env.local` with your actual credentials:
 npm run db:neon:setup
 ```
 
-5. Start development server
+5. Configure SMTP settings (optional)
+- Login to admin panel at `/auth/admin-login`
+- Go to Email Center tab
+- Configure your SMTP server settings
+
+6. Start development server
 ```bash
 npm run dev
 ```
