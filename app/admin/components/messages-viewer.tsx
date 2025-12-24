@@ -4,16 +4,21 @@ import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Loader2, Mail, MailOpen, Trash2, ExternalLink } from "lucide-react"
-import { getAdminAuthHeader } from "@/lib/admin-auth"
 import type { ContactMessage } from "@/lib/types"
 import styles from "@/styles/habbo.module.css"
+
+// Helper function to get auth header from localStorage
+function getAuthHeader() {
+  const token = localStorage.getItem("admin_token")
+  return token ? { Authorization: `Bearer ${token}` } : {}
+}
 
 export default function MessagesViewer() {
   const [messages, setMessages] = useState<ContactMessage[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const authHeader = getAdminAuthHeader() ?? {}
+    const authHeader = getAuthHeader()
 
     fetch("/api/contact", { headers: authHeader })
       .then((res) => res.json())
@@ -26,7 +31,7 @@ export default function MessagesViewer() {
 
   const handleMarkRead = async (id: string, is_read: boolean) => {
     try {
-      const authHeader = getAdminAuthHeader() ?? {}
+      const authHeader = getAuthHeader()
 
       await fetch("/api/contact", {
         method: "PATCH",
@@ -43,7 +48,7 @@ export default function MessagesViewer() {
     if (!confirm("Delete this message?")) return
 
     try {
-      const authHeader = getAdminAuthHeader() ?? {}
+      const authHeader = getAuthHeader()
       const res = await fetch(`/api/contact?id=${id}`, {
         method: "DELETE",
         headers: authHeader,

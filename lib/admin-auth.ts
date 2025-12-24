@@ -1,46 +1,54 @@
-import { NextRequest } from "next/server"
+import { dbQuery } from "./db"
 
 /**
- * Check if request is from authenticated admin (either Supabase or custom localStorage token)
+ * Server-side only: Check if request is from authenticated admin using session token from database
  * Returns true if authorized, false otherwise
+ * 
+ * DO NOT IMPORT THIS IN CLIENT COMPONENTS - it uses pg module which is server-only
  */
-export async function isAdminAuthorized(request: NextRequest): Promise<boolean> {
-  // Check for custom admin token in headers
-  const authHeader = request.headers.get("authorization")
-  console.log("[AUTH] Authorization header:", authHeader ? authHeader.substring(0, 30) + "..." : "NOT FOUND")
-  
-  if (authHeader?.startsWith("Bearer ")) {
-    const token = authHeader.slice(7)
-    console.log("[AUTH] Token found, length:", token.length)
-    try {
-      const decoded = JSON.parse(Buffer.from(token, "base64").toString())
-      console.log("[AUTH] Decoded token:", decoded)
-      if (decoded.email && decoded.iat) {
-        // Valid custom token format
-        console.log("[AUTH] Valid token format, returning true")
-        return true
-      }
-    } catch (e) {
-      // Invalid token format, continue to Supabase check
-      console.log("[AUTH] Token decode error:", String(e))
+export async function isAdminAuthorized(request: Request): Promise<boolean> {
+  try {
+    // Check for session token in headers
+    const authHeader = request.headers.get("authorization")
+    
+    if (!authHeader?.startsWith("Bearer ")) {
+      return false
     }
-  }
 
-  // Fallback: try Supabase auth (for future use when Supabase auth is fixed)
-  // For now, we're using custom admin auth exclusively
-  console.log("[AUTH] No valid auth token found, returning false")
-  return false
-}
+    const token = authHeader.slice(7)
+    
+    if (!token) {
+      return false
+    }
 
-/**
- * Check if client request from browser has admin localStorage token
- * Pass as Authorization header in client-side fetches
- */
-export function getAdminAuthHeader(): { "Authorization": string } | undefined {
-  if (typeof window === "undefined") return undefined
-  const token = localStorage.getItem("admin_token")
-  if (!token) return undefined
-  return {
-    Authorization: `Bearer ${token}`,
+    // Verify token in database
+    const sessionResult = await dbQuery(
+      `
+      SELECT s.id, s.expires_at, u.role
+      FROM sessions s
+      JOIN users u ON s.user_id = u.id
+      WHERE s.token = $1
+    `,
+      [token]
+    )
+
+    if (sessionResult.rows.length === 0) {
+      return false
+    }
+
+    const session = sessionResult.rows[0]
+
+    // Check if session expired
+    if (new Date(session.expires_at) < new Date()) {
+      // Delete expired session
+      await dbQuery("DELETE FROM sessions WHERE id = $1", [session.id])
+      return false
+    }
+
+    // Check if user is admin
+    return session.role === "admin"
+  } catch (error) {
+    console.error("[AUTH] Error verifying token:", error)
+    return false
   }
 }
